@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>NID Scanner</title>
+</head>
+<body>
+
+<div>
+    <input type="file" id="file" onchange="analyzeImage()" accept="image/*" capture="environment">
+    <p></p>
+</div>
+
+<script src='https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js'></script>
+<script>
+    function analyzeImage() {
+        const input = document.querySelector('#file');
+        const file = input.files[0];
+
+        if( ! file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => recognize(reader.result);
+        reader.readAsDataURL(file);
+    }
+    function recognize(img) {
+        if( ! Tesseract) {
+            alert('Failed to load scanner');
+        }
+        Tesseract.recognize(
+            img,
+            'eng'
+        ).then(({ data: { text } }) => {
+            console.log(text);
+            document.querySelector('p').innerText = text;
+        });
+    }
+</script>
+</body>
+</html>
