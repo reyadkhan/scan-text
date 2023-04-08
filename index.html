@@ -6,27 +6,122 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>NID Scanner</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
 </head>
 <body>
 
-<div>
-    <input type="file" id="file" onchange="analyzeImage()" accept="image/*" capture="environment">
-    <p></p>
+<div class="p-5">
+    <h2>Upload ,Crop and save.</h2>
+    <!-- input file -->
+    <div class="p-2">
+        <input class="form-control-file" type="file" id="file-input" accept="image/*" capture="environment">
+    </div>
+    <div class="card" style="max-width: 500px;">
+        <div class="car-body">
+            <div class="result"></div>
+        </div>
+    </div>
+    <p class="d-none my-3" id="loading">Processing...</p>
+    <div class="card my-4">
+        <div class="card-body">
+            <div class="mb-2">
+                <div class="custom-control custom-radio">
+                    <input type="radio" id="new-id" name="idType" value="1" class="custom-control-input" checked>
+                    <label class="custom-control-label" for="new-id">New NID</label>
+                </div>
+                <div class="custom-control custom-radio">
+                    <input type="radio" id="old-id" value="2" name="idType" class="custom-control-input">
+                    <label class="custom-control-label" for="old-id">Old NID</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-8">
+                    <input class="form-control" type="text" id="number-input">
+                </div>
+                <div class="col-4">
+                    <button class="btn btn-success">Verify</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box">
+        <button class="btn btn-info save hide">Extract</button>
+    </div>
 </div>
 
 <script src='https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js'></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/cropper/2.3.4/cropper.min.css'>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js'></script>
 <script>
-    function analyzeImage() {
-        const input = document.querySelector('#file');
-        const file = input.files[0];
 
-        if( ! file) {
-            return;
+    let result = document.querySelector('.result'),
+        save = document.querySelector('.save'),
+        upload = document.querySelector('#file-input'),
+        cropper = '';
+
+    // on change show image with crop options
+    upload.addEventListener('change', e => {
+        if (e.target.files.length) {
+            const fileType = e.target.files[0].type;
+            const reader = new FileReader();
+            reader.onload = e => {
+                if (e.target.result) {
+                    const image = new Image();
+                    image.src = e.target.result;
+
+                    image.onload = function() {
+                        let maxWidth = 450,
+                            maxHeight = 450,
+                            imageWidth = image.width,
+                            imageHeight = image.height;
+
+                        if (imageWidth > imageHeight) {
+                            if (imageWidth > maxWidth) {
+                                imageHeight *= maxWidth / imageWidth;
+                                imageWidth = maxWidth;
+                            }
+                        }
+                        else {
+                            if (imageHeight > maxHeight) {
+                                imageWidth *= maxHeight / imageHeight;
+                                imageHeight = maxHeight;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imageWidth;
+                        canvas.height = imageHeight;
+
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(this, 0, 0, imageWidth, imageHeight);
+
+                        // The resized file ready for upload
+                        const finalFile = canvas.toDataURL(fileType);
+
+                        let img = document.createElement('img');
+                        img.id = 'image';
+                        img.src = finalFile;
+                        result.innerHTML = '';
+                        result.appendChild(img);
+                        cropper = new Cropper(img, {viewMode: 2, aspectRatio: 2, dragMode: 'move'});
+                    }
+                }
+            };
+            reader.readAsDataURL(e.target.files[0]);
         }
-        const reader = new FileReader();
-        reader.onloadend = () => recognize(reader.result);
-        reader.readAsDataURL(file);
-    }
+    });
+
+    // save on click
+    save.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelector('#loading').classList.remove('d-none');
+        let imgSrc = cropper.getCroppedCanvas({
+            width: 450 // input value
+        }).toDataURL();
+        recognize(imgSrc);
+    });
+
     function recognize(img) {
         if( ! Tesseract) {
             alert('Failed to load scanner');
@@ -35,8 +130,19 @@
             img,
             'eng'
         ).then(({ data: { text } }) => {
-            console.log(text);
-            document.querySelector('p').innerText = text;
+            console.log(text.replace(/\D/g, ''));
+            text = text.replace(/\D/g, '');
+            const nidType = document.querySelector('input[name="idType"]:checked').value;
+            let idSize;
+
+            if(parseInt(nidType) === 1) {
+                idSize = 10;
+            } else {
+                idSize = 13;
+            }
+            const input = document.querySelector('#number-input');
+            input.value = text.substr(-idSize);
+            document.querySelector('#loading').classList.add('d-none');
         });
     }
 </script>
