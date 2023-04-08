@@ -39,7 +39,7 @@
                     <input class="form-control" type="text" id="number-input">
                 </div>
                 <div class="col-4">
-                    <button class="btn btn-success">Verify</button>
+                    <button class="btn btn-success" onclick="verifyId()">Verify</button>
                 </div>
             </div>
         </div>
@@ -53,6 +53,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/cropper/2.3.4/cropper.min.css'>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/cropperjs/0.8.1/cropper.min.js'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 <script>
 
     let result = document.querySelector('.result'),
@@ -126,11 +127,13 @@
         if( ! Tesseract) {
             alert('Failed to load scanner');
         }
+        const input = document.querySelector('#number-input');
+        input.value = '';
+
         Tesseract.recognize(
             img,
             'eng'
         ).then(({ data: { text } }) => {
-            console.log(text.replace(/\D/g, ''));
             text = text.replace(/\D/g, '');
             const nidType = document.querySelector('input[name="idType"]:checked').value;
             let idSize;
@@ -140,10 +143,34 @@
             } else {
                 idSize = 13;
             }
-            const input = document.querySelector('#number-input');
             input.value = text.substr(-idSize);
             document.querySelector('#loading').classList.add('d-none');
         });
+    }
+
+    function verifyId() {
+        const idInput = document.querySelector('#number-input');
+        const id = idInput.value;
+
+        if( ! id) {
+            alert('Scan or input nid first');
+            return;
+        }
+        const storageKey = 'nid_storage';
+        const storedIdsInText = localStorage.getItem(storageKey);
+        let storageJson = JSON.parse(storedIdsInText);
+
+        if( ! storageJson) {
+            storageJson = {};
+        }
+        if(storageJson.hasOwnProperty(id)) {
+            alert('Fraud detected. Delivered on ' + moment(storageJson[id]).format('l hh:mm a'));
+            return;
+        }
+        storageJson[id] = moment();
+        localStorage.setItem(storageKey, JSON.stringify(storageJson));
+        alert('Success! NID: ' + id);
+        idInput.value = '';
     }
 </script>
 </body>
